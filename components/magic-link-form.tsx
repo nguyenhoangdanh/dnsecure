@@ -7,8 +7,8 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Icons } from "@/components/icons"
-import { useAuth } from "@/lib/contexts/auth-context"
+import { Loader } from "lucide-react"
+import { useAppDispatch, useAuth } from "@/hooks"
 
 const formSchema = z.object({
     email: z.string().email({
@@ -19,7 +19,8 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>
 
 export function MagicLinkForm() {
-    const { sendMagicLink } = useAuth()
+    const { sendMagicLink } = useAuth();
+    const dispatch = useAppDispatch();
     const [isLoading, setIsLoading] = React.useState<boolean>(false)
     const [error, setError] = React.useState<string | null>(null)
     const [success, setSuccess] = React.useState<boolean>(false)
@@ -32,23 +33,41 @@ export function MagicLinkForm() {
         resolver: zodResolver(formSchema),
     })
 
+    // async function onSubmit(data: FormData) {
+    //     setIsLoading(true)
+    //     setError(null)
+    //     setSuccess(false)
+
+    //     try {
+    //         const result = await sendMagicLink(data.email)
+
+    //         if (result.success) {
+    //             setSuccess(true)
+    //         } else {
+    //             setError(result.error || "Failed to send magic link")
+    //         }
+    //     } catch (error) {
+    //         setError("An unexpected error occurred")
+    //     } finally {
+    //         setIsLoading(false)
+    //     }
+    // }
+
     async function onSubmit(data: FormData) {
-        setIsLoading(true)
-        setError(null)
-        setSuccess(false)
+        setIsLoading(true);
+        setError(null);
+        setSuccess(false);
 
         try {
-            const result = await sendMagicLink(data.email)
+            // Use the Redux-based sendMagicLink action
+            dispatch(sendMagicLink(data.email));
 
-            if (result.success) {
-                setSuccess(true)
-            } else {
-                setError(result.error || "Failed to send magic link")
-            }
+            // For now, set success manually
+            setSuccess(true);
         } catch (error) {
-            setError("An unexpected error occurred")
+            setError("An unexpected error occurred");
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }
     }
 
@@ -79,7 +98,7 @@ export function MagicLinkForm() {
                         </div>
                         {error && <p className="text-sm text-red-500">{error}</p>}
                         <Button disabled={isLoading}>
-                            {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+                            {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
                             Send Magic Link
                         </Button>
                     </div>

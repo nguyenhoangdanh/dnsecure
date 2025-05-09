@@ -1,92 +1,112 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+// In middleware.ts
+import { NextResponse, NextRequest } from 'next/server'
+import jwt, { JwtPayload } from 'jsonwebtoken';
+
+// Define custom interface for JWT payload
+interface CustomJwtPayload extends JwtPayload {
+  sub: string;
+  email?: string;
+  sessionId?: string;
+  roles?: string[];
+}
 
 // Define paths that don't require authentication
 const publicPaths = ['/', '/login', '/register', '/verify-code', '/verify-email', '/forgot-password', '/reset-password']
 
-// Define paths that require specific roles
-const roleProtectedPaths: Record<string, string[]> = {
-  '/admin': ['ADMIN'],
-  '/admin/users': ['ADMIN'],
-  '/admin/roles': ['ADMIN'],
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Check if the path is public
-  if (publicPaths.some(path => pathname === path || pathname.startsWith(`${path}/`))) {
-    return NextResponse.next()
-  }
+  // // Check if the path is public
+  // if (publicPaths.some(path => pathname === path || pathname.startsWith(`${path}/`))) {
+  //   return NextResponse.next()
+  // }
 
-  // Get the session token from cookies
-  const sessionToken = request.cookies.get('session_token')?.value
+  // // Get token from cookies
+  // const cookieToken = request.cookies.get('accessToken')?.value;
+  
+  // // Try to get token from Authorization header as fallback
+  // const authorization = request.headers.get('authorization');
+  // const headerToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null;
+  
+  // // Determine which token to use
+  // const token = cookieToken || headerToken;
+  
+  // console.log('Cookie token:', cookieToken);
+  // console.log('Header token:', headerToken);
+  // console.log('Using token:', token);
 
-  // If no session token, redirect to login
-  if (!sessionToken) {
-    const url = new URL('/login', request.url)
-    url.searchParams.set('callbackUrl', encodeURI(pathname))
-    return NextResponse.redirect(url)
-  }
+  // // If no token, redirect to login
+  // if (!token) {
+  //   console.log('No token found, redirecting to login');
+  //   const url = new URL('/login', request.url)
+  //   url.searchParams.set('callbackUrl', encodeURI(pathname))
+  //   return NextResponse.redirect(url)
+  // }
 
-  try {
-    // Verify session token (in a real implementation, you would validate against your database)
-    const response = await fetch(`${request.nextUrl.origin}/api/auth/verify-session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token: sessionToken }),
-    })
+  // try {
+  //   // Verify JWT token without calling API
+  //   const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret';
+  //   // Type assertion to help TypeScript understand the result
+  //   const decoded = jwt.verify(token, jwtSecret) as CustomJwtPayload;
+    
+  //   console.log('Token verified successfully');
+    
+  //   // Add user info to headers
+  //   const requestHeaders = new Headers(request.headers)
+  //   if (decoded.sub) {
+  //     requestHeaders.set('x-user-id', decoded.sub)
+  //   }
+  //   if (decoded.roles) {
+  //     requestHeaders.set('x-user-roles', JSON.stringify(decoded.roles))
+  //   }
 
-    const data = await response.json()
-
-    // If session is invalid, redirect to login
-    if (!response.ok || !data.valid) {
-      const url = new URL('/login', request.url)
-      url.searchParams.set('callbackUrl', encodeURI(pathname))
-      return NextResponse.redirect(url)
-    }
-
-    // Check role-based access for protected paths
-    for (const [protectedPath, requiredRoles] of Object.entries(roleProtectedPaths)) {
-      if (pathname.startsWith(protectedPath)) {
-        const hasRequiredRole = requiredRoles.some(role => data.roles.includes(role))
+  //   return NextResponse.next({
+  //     request: {
+  //       headers: requestHeaders,
+  //     },
+  //   });
+  // } catch (error: any) {
+  //   console.error('Token verification error:', error.name, error.message);
+    
+  //   // Try to refresh the token if it's expired
+  //   if (error.name === 'TokenExpiredError') {
+  //     try {
+  //       console.log('Token expired, attempting refresh');
         
-        if (!hasRequiredRole) {
-          return NextResponse.redirect(new URL('/unauthorized', request.url))
-        }
-      }
-    }
-
-    // Add user info to headers for the application to use
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id', data.userId)
-    requestHeaders.set('x-user-roles', JSON.stringify(data.roles))
-
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
-  } catch (error) {
-    console.error('Auth middleware error:', error)
-    const url = new URL('/login', request.url)
-    url.searchParams.set('callbackUrl', encodeURI(pathname))
-    return NextResponse.redirect(url)
-  }
+  //       // Use direct API call instead of redirect for token refresh
+  //       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001/api';
+  //       const refreshResponse = await fetch(`${apiUrl}/auth/refresh`, {
+  //         method: 'POST',
+  //         credentials: 'include', // Important for cookies
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //         }
+  //       });
+        
+  //       // If refresh succeeded, redirect to same page to try again with new token
+  //       if (refreshResponse.ok) {
+  //         console.log('Token refreshed successfully');
+  //         return NextResponse.redirect(request.url);
+  //       }
+        
+  //       console.log('Token refresh failed', refreshResponse.status);
+  //     } catch (refreshError) {
+  //       console.error('Error during token refresh:', refreshError);
+  //     }
+  //   }
+    
+  //   // If we get here, authentication failed
+  //   console.log('Authentication failed, redirecting to login');
+  //   const url = new URL('/login', request.url)
+  //   url.searchParams.set('callbackUrl', encodeURI(pathname))
+  //   url.searchParams.set('tokenExpired', error.name === 'TokenExpiredError' ? 'true' : 'false')
+  //   return NextResponse.redirect(url)
+  // }
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     * - api routes that handle their own authentication
-     */
     '/((?!_next/static|_next/image|favicon.ico|public|api/auth).*)',
   ],
 }

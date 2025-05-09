@@ -1,27 +1,66 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
-import { getSessionFromToken } from "@/lib/actions/session-action"
+// In app/auth/callback/page.tsx
+"use client"
 
-export async function GET(req: NextRequest) {
-    try {
-        // Get the session token from cookies
-        const sessionToken = cookies().get("session_token")?.value
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { authService } from "@/lib/services/auth-service"
+import { useAuth } from "@/hooks"
 
-        if (!sessionToken) {
-            return NextResponse.json({ session: null }, { status: 200 })
-        }
+export default function AuthCallback() {
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    // const { refreshUser } = useAuth()
+    const [error, setError] = useState<string | null>(null)
 
-        // Get the session from the token
-        const result = await getSessionFromToken(sessionToken)
+    // useEffect(() => {
+    //     const processCallback = async () => {
+    //         try {
+    //             // Check for token in URL
+    //             const token = searchParams.get("token")
 
-        if (!result.success) {
-            cookies().delete("session_token")
-            return NextResponse.json({ session: null }, { status: 200 })
-        }
+    //             if (token) {
+    //                 // Store token
+    //                 const expiresAt = new Date()
+    //                 expiresAt.setHours(expiresAt.getHours() + 1) // Assuming 1 hour expiry
+    //                 authService.setStoredToken(token, expiresAt)
 
-        return NextResponse.json({ session: result.session }, { status: 200 })
-    } catch (error) {
-        console.error("Session info error:", error)
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-    }
+    //                 // Refresh user data
+    //                 await refreshUser()
+
+    //                 // Redirect to callbackUrl or dashboard
+    //                 const callbackUrl = searchParams.get("callbackUrl") || "/"
+    //                 router.push(callbackUrl)
+    //             } else {
+    //                 setError("No authentication token provided")
+    //             }
+    //         } catch (error) {
+    //             console.error("Auth callback error:", error)
+    //             setError("Authentication failed")
+    //         }
+    //     }
+
+    //     processCallback()
+    // }, [router, searchParams, refreshUser])
+
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            {error ? (
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold text-red-500">Authentication Error</h1>
+                    <p className="mt-2">{error}</p>
+                    <button
+                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={() => router.push("/login")}
+                    >
+                        Return to Login
+                    </button>
+                </div>
+            ) : (
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold">Authenticating...</h1>
+                    <p className="mt-2">Please wait while we sign you in</p>
+                </div>
+            )}
+        </div>
+    )
 }

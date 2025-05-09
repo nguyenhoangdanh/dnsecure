@@ -24,11 +24,11 @@ export async function getUserRoles(userId: string) {
       return { success: false, error: "User not found" }
     }
 
-    const roles: RoleWithPermissions[] = userWithRoles.userRoles.map((userRole) => ({
+    const roles: RoleWithPermissions[] = userWithRoles.userRoles.map((userRole:any) => ({
       id: userRole.role.id,
       name: userRole.role.name,
       description: userRole.role.description,
-      permissions: userRole.role.permissions.map((permission) => ({
+      permissions: userRole.role.permissions.map((permission:any) => ({
         id: permission.id,
         name: permission.name,
         description: permission.description,

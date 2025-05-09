@@ -8,8 +8,8 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Icons } from "@/components/icons"
-import { forgotPassword } from "@/lib/actions/auth-actions"
+import { useAppDispatch, useAuth } from "@/hooks"
+import { Loader } from "lucide-react"
 
 const formSchema = z.object({
   email: z.string().email({
@@ -21,6 +21,8 @@ type FormData = z.infer<typeof formSchema>
 
 export function ForgotPasswordForm() {
   const router = useRouter()
+  const dispatch = useAppDispatch();
+  const { forgotPassword } = useAuth();
   const [isLoading, setIsLoading] = React.useState<boolean>(false)
   const [error, setError] = React.useState<string | null>(null)
   const [success, setSuccess] = React.useState<boolean>(false)
@@ -34,24 +36,42 @@ export function ForgotPasswordForm() {
   })
 
   async function onSubmit(data: FormData) {
-    setIsLoading(true)
-    setError(null)
-    setSuccess(false)
+    setIsLoading(true);
+    setError(null);
+    setSuccess(false);
 
     try {
-      const result = await forgotPassword(data.email)
+      // Use the Redux-based forgotPassword action
+      dispatch(forgotPassword(data.email));
 
-      if (result.success) {
-        setSuccess(true)
-      } else {
-        setError(result.error || "Something went wrong")
-      }
+      // For now, set success manually
+      setSuccess(true);
     } catch (error) {
-      setError("An unexpected error occurred")
+      setError("An unexpected error occurred");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
+
+  // async function onSubmit(data: FormData) {
+  //   setIsLoading(true)
+  //   setError(null)
+  //   setSuccess(false)
+
+  //   try {
+  //     const result = await forgotPassword(data.email)
+
+  //     if (result.success) {
+  //       setSuccess(true)
+  //     } else {
+  //       setError(result.error || "Something went wrong")
+  //     }
+  //   } catch (error) {
+  //     setError("An unexpected error occurred")
+  //   } finally {
+  //     setIsLoading(false)
+  //   }
+  // }
 
   return (
     <div className="grid gap-6">
@@ -80,7 +100,7 @@ export function ForgotPasswordForm() {
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button disabled={isLoading}>
-              {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+              {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
               Send Reset Link
             </Button>
           </div>

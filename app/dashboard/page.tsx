@@ -1,14 +1,16 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ProtectedRoute } from "@/components/auth/protected-route"
-import { useAuth } from "@/lib/contexts/auth-context"
+import AuthGuard from "@/components/auth-guard"
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks";
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
   return (
-    <ProtectedRoute>
+    <AuthGuard >
       <div className="container py-10">
         <div className="flex flex-col items-center justify-center space-y-4">
           <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -28,8 +30,9 @@ export default function DashboardPage() {
           </div>
 
           <Button onClick={() => logout()}>Logout</Button>
+          <Button onClick={() => router.push('/admin')}>Go to Admin</Button>
         </div>
       </div>
-    </ProtectedRoute>
+    </AuthGuard>
   )
 }

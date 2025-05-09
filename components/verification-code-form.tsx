@@ -1,15 +1,16 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Icons } from "@/components/icons"
 import Link from "next/link"
-import { useAuth } from "@/lib/contexts/auth-context"
+import { VerifyRegistration } from "@/lib/types/auth"
+import { Loader } from "lucide-react"
+import { useAuth } from "@/hooks"
 
 const formSchema = z.object({
   code: z
@@ -23,7 +24,9 @@ type FormData = z.infer<typeof formSchema>
 
 export function VerificationCodeForm() {
   const router = useRouter()
-  const { verifyAccount } = useAuth()
+  const { verifyAccount } = useAuth();
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email")
   const [isLoading, setIsLoading] = React.useState<boolean>(false)
   const [isResending, setIsResending] = React.useState<boolean>(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -48,24 +51,57 @@ export function VerificationCodeForm() {
 
   async function onSubmit(data: FormData) {
     setIsLoading(true)
-    setError(null)
+    setError(null);
 
     try {
-      const result = await verifyAccount(data.code)
-
-      if (result.success) {
-        setSuccess(true)
-        setTimeout(() => {
-          router.push("/dashboard")
-        }, 2000)
-      } else {
-        setError(result.error || "Invalid verification code")
+      if (!email) {
+        setError("Please provide your email.");
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      setError("An unexpected error occurred")
-    } finally {
-      setIsLoading(false)
+
+      // Use the Redux-based verifyAccount action
+      verifyAccount({
+        email,
+        code: data.code
+      });
+
+      // Redux will handle the rest through sagas
+    } catch (error: any) {
+      console.error("Verification error:", error);
+      setError("An unexpected error occurred");
+      setIsLoading(false);
     }
+
+    // try {
+    //   if (!email) {
+    //     setError("Please provide your email.")
+    //     return
+    //   }
+    //   const dataSend: VerifyRegistration = {
+    //     email,
+    //     code: data.code
+    //   }
+    //   const result = await verifyAccount(dataSend);
+
+    //   if (result.success) {
+    //     setSuccess(true)
+    //     setTimeout(() => {
+    //       router.push("/")
+    //     }, 2000)
+    //   } else {
+    //     // setError(result.error || "Invalid verification code")
+    //     if (typeof result.error === 'string') {
+    //       setError("Invalid verification code")
+    //     } else if (result.error && 'message' in result.error) {
+    //       setError(result?.error?.message);
+    //     }
+    //   }
+    // } catch (error) {
+    //   setError("An unexpected error occurred")
+    // } finally {
+    //   setIsLoading(false)
+    // }
   }
 
   async function handleResendCode() {
@@ -117,7 +153,7 @@ export function VerificationCodeForm() {
                 </p>
               )}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
                 Verify Account
               </Button>
             </div>
@@ -131,7 +167,7 @@ export function VerificationCodeForm() {
         </p>
         <Button onClick={handleResendCode} disabled={isResending || countdown > 0} variant="outline" className="w-full">
           {isResending ? (
-            <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+            <Loader className="mr-2 h-4 w-4 animate-spin" />
           ) : countdown > 0 ? (
             `Resend code in ${countdown}s`
           ) : (

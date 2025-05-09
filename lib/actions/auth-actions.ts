@@ -7,7 +7,7 @@ type LoginData = {
 }
 
 type RegisterData = {
-  name: string
+  fullName: string
   email: string
   password: string
 }

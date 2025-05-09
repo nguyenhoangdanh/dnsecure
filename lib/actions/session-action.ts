@@ -60,13 +60,15 @@ export async function createSession(userId: string, deviceInfo?: any) {
     })
 
     // Set the session token in a cookie
-    cookies().set("session_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      expires: expiresAt,
-      path: "/",
-    })
+   // Set the session token in a cookie
+   const cookieStore = cookies()
+   cookieStore.set("session_token", token, {
+     httpOnly: true,
+     secure: process.env.NODE_ENV === "production",
+     sameSite: "lax",
+     expires: expiresAt,
+     path: "/",
+   })
 
     return {
       success: true,
@@ -115,14 +117,14 @@ export async function refreshSession(sessionId: string) {
     })
 
     // Update the cookie
-    cookies().set("session_token", currentSession.token, {
+    const cookieStore = cookies()
+    cookieStore.set("session_token", currentSession.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       expires: expiresAt,
       path: "/",
     })
-
     return {
       success: true,
       session: {
@@ -147,7 +149,8 @@ export async function invalidateSession(sessionId: string) {
     })
 
     // Remove the session cookie
-    cookies().delete("session_token")
+    const cookieStore = cookies()
+    cookieStore.delete("session_token")
 
     return { success: true }
   } catch (error) {
@@ -187,8 +190,8 @@ export async function getSessionFromToken(token: string) {
     }
 
     // Extract roles and permissions
-    const roles = session.user.userRoles.map((ur) => ur.role.name)
-    const permissions = session.user.userRoles.flatMap((ur) => ur.role.permissions.map((p) => p.name))
+    const roles = session.user.userRoles.map((ur:any) => ur.role.name)
+    const permissions = session.user.userRoles.flatMap((ur:any) => ur.role.permissions.map((p) => p.name))
 
     return {
       success: true,

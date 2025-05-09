@@ -8,9 +8,9 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Icons } from "@/components/icons"
-import { useAuth } from "@/lib/contexts/auth-context"
 import { OAuthButtons } from "@/components/auth/oauth-buttons"
+import { Loader } from "lucide-react"
+import { useAuth } from "@/hooks"
 
 const formSchema = z
   .object({
@@ -54,25 +54,48 @@ export function UserRegisterForm() {
 
   async function onSubmit(data: FormData) {
     setIsLoading(true)
-    setError(null)
+    setError(null);
+
 
     try {
-      const result = await registerUser({
+      // Use the Redux-based register action
+      registerUser({
         fullName: data.name,
         email: data.email,
         password: data.password,
-      })
+        // redirectTo: `/verify-code?email=${encodeURIComponent(data.email)}`
+      });
 
-      if (result.success) {
-        router.push("/verify-email")
-      } else {
-        setError(result.error || "Registration failed")
-      }
-    } catch (error) {
-      setError("An unexpected error occurred")
-    } finally {
-      setIsLoading(false)
+      // Redux will handle the rest through sagas
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      setError("An unexpected error occurred");
+      setIsLoading(false);
     }
+
+    // try {
+    //   const result = await registerUser({
+    //     fullName: data.name,
+    //     email: data.email,
+    //     password: data.password,
+    //   })
+
+    //   if (result.success) {
+    //     router.push(`/verify-code?email=${data.email}`)
+    //   } else {
+    //     // setError(result?.error?.message || "Registration failed")
+    //     if (typeof result.error === 'string') {
+    //       setError("Registration failed")
+    //     } else if (result.error && 'message' in result.error) {
+    //       setError(result?.error?.message);
+    //     }
+
+    //   }
+    // } catch (error) {
+    //   setError("An unexpected error occurred")
+    // } finally {
+    //   setIsLoading(false)
+    // }
   }
 
   return (
@@ -111,7 +134,7 @@ export function UserRegisterForm() {
             <Input
               id="password"
               placeholder="••••••••"
-              type="password"
+              // type="password"
               autoCapitalize="none"
               autoComplete="new-password"
               disabled={isLoading}
@@ -124,7 +147,7 @@ export function UserRegisterForm() {
             <Input
               id="confirmPassword"
               placeholder="••••••••"
-              type="password"
+              // type="password"
               autoCapitalize="none"
               autoComplete="new-password"
               disabled={isLoading}
@@ -134,7 +157,7 @@ export function UserRegisterForm() {
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button disabled={isLoading}>
-            {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
             Create Account
           </Button>
         </div>

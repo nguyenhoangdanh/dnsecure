@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Icons } from "@/components/icons"
 import { verifyEmail, resendVerificationEmail } from "@/lib/actions/auth-actions"
+import { Loader } from "lucide-react"
 
 export function VerifyEmailForm() {
   const router = useRouter()
@@ -65,7 +66,7 @@ export function VerifyEmailForm() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <Icons.spinner className="h-8 w-8 animate-spin" />
+        <Loader className="h-8 w-8 animate-spin" />
         <span className="ml-2">Verifying your email...</span>
       </div>
     )
@@ -102,7 +103,7 @@ export function VerifyEmailForm() {
           Didn't receive the verification email? Check your spam folder or click below to resend.
         </p>
         <Button onClick={handleResendVerification} disabled={isResending} variant="outline">
-          {isResending && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+          {isResending && <Loader className="mr-2 h-4 w-4 animate-spin" />}
           Resend Verification Email
         </Button>
       </div>

@@ -1,10 +1,10 @@
 "use client"
 
-import { useAuth } from "@/lib/contexts/auth-context"
 import { useRole } from "@/lib/contexts/role-context"
 import { usePermission } from "@/lib/contexts/permission-context"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { useAuth } from "@/hooks"
 
 interface UseAuthorizedOptions {
     requiredRoles?: string[]

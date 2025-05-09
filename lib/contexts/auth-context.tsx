@@ -1,16 +1,28 @@
+// In auth-context.tsx
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import type { AuthState, LoginCredentials, RegisterCredentials } from "../types/auth"
-import { authService } from "../services/auth-service"
+import type { AuthState, LoginCredentials, RegisterCredentials, VerifyRegistration } from "../types/auth"
+import { authService } from "../services/auth-service";
+
+interface IErrorResponse {
+    success: boolean;
+    error?: {
+        error: string;
+        message: string;
+        statusCode: number;
+    } | string
+}
 
 interface AuthContextType extends AuthState {
-    login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string }>
-    register: (credentials: RegisterCredentials) => Promise<{ success: boolean; error?: string }>
+    login: (credentials: LoginCredentials) => Promise<IErrorResponse>
+    register: (credentials: RegisterCredentials) => Promise<IErrorResponse>
+    verifyAccount: (credentials: VerifyRegistration) => Promise<IErrorResponse>
     logout: () => Promise<void>
-    sendMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>
+    sendMagicLink: (email: string) => Promise<any>
+    verifyMagicLink: (token: string) => Promise<any>
     refreshUser: () => Promise<void>
     isAuthenticated: boolean
 }
@@ -26,33 +38,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         status: "loading",
     })
 
+    // Reference to refresh timer
+    const refreshTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+    // Function to set up token refresh timer
+    const setupRefreshTimer = (expiresAt: Date) => {
+        // Clear any existing timer
+        if (refreshTimerRef.current) {
+            clearTimeout(refreshTimerRef.current)
+        }
+
+        // Calculate time until token expiry (75% of the way through)
+        const now = new Date().getTime()
+        const expiry = expiresAt.getTime()
+        const timeUntilExpiry = expiry - now
+
+        // Refresh at 75% of the token lifetime
+        const refreshTime = timeUntilExpiry * 0.75
+
+        // Set up refresh timer
+        refreshTimerRef.current = setTimeout(async () => {
+            try {
+                const response = await authService.refreshToken()
+
+                if (response.success && response.data) {
+                    const { user, accessToken, expiresAt } = response.data
+
+                    // Update auth state
+                    setAuthState({
+                        user,
+                        accessToken,
+                        expiresAt: new Date(expiresAt),
+                        status: "authenticated",
+                    })
+
+                    // Set up next refresh timer
+                    setupRefreshTimer(new Date(expiresAt))
+                }
+            } catch (error) {
+                console.error("Token refresh failed:", error)
+            }
+        }, refreshTime)
+    }
+
     // Check if user is authenticated on mount
     useEffect(() => {
         const initAuth = async () => {
-            // Check for token in localStorage
-            const token = authService.getStoredToken()
-
-            if (!token || authService.isTokenExpired()) {
-                setAuthState({
-                    user: null,
-                    accessToken: null,
-                    expiresAt: null,
-                    status: "unauthenticated",
-                })
-                return
-            }
-
             try {
                 // Validate token by fetching current user
                 const response = await authService.getCurrentUser()
 
                 if (response.success && response.data) {
+                    // Get token from localStorage (fallback)
+                    const token = authService.getStoredToken()
+                    const expiresAtStr = localStorage.getItem("tokenExpiresAt")
+                    const expiresAt = expiresAtStr ? new Date(expiresAtStr) : new Date(Date.now() + 3600 * 1000)
+
                     setAuthState({
                         user: response.data,
                         accessToken: token,
-                        expiresAt: new Date(localStorage.getItem("tokenExpiresAt") || ""),
+                        expiresAt: expiresAt,
                         status: "authenticated",
                     })
+
+                    // Set up refresh timer
+                    setupRefreshTimer(expiresAt)
                 } else {
                     // Token is invalid
                     authService.clearStoredToken()
@@ -75,16 +125,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         initAuth()
+
+        // Clean up refresh timer on unmount
+        return () => {
+            if (refreshTimerRef.current) {
+                clearTimeout(refreshTimerRef.current)
+            }
+        }
     }, [])
 
-    const login = async (credentials: LoginCredentials) => {
+    const login = async (credentials: LoginCredentials): Promise<IErrorResponse> => {
         try {
             const response = await authService.login(credentials)
 
             if (response.success && response.data) {
                 const { user, accessToken, expiresAt } = response.data
 
-                // Store token
+                // Store token in localStorage as fallback
                 authService.setStoredToken(accessToken, new Date(expiresAt))
 
                 // Update auth state
@@ -94,6 +151,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     expiresAt: new Date(expiresAt),
                     status: "authenticated",
                 })
+
+                // Set up refresh timer
+                setupRefreshTimer(new Date(expiresAt))
 
                 return { success: true }
             }
@@ -111,23 +171,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    const register = async (credentials: RegisterCredentials) => {
+    const register = async (credentials: RegisterCredentials): Promise<IErrorResponse> => {
         try {
             const response = await authService.register(credentials)
 
-            if (response.success && response.data) {
-                const { user, accessToken, expiresAt } = response.data
+            if (response.success) {
+                // await authService.verifyRegistration(credentials.email);
+                // const { user, accessToken, expiresAt } = response.data
 
-                // Store token
-                authService.setStoredToken(accessToken, new Date(expiresAt))
+                // // Store token in localStorage as fallback
+                // authService.setStoredToken(accessToken, new Date(expiresAt))
 
-                // Update auth state
-                setAuthState({
-                    user,
-                    accessToken,
-                    expiresAt: new Date(expiresAt),
-                    status: "authenticated",
-                })
+                // // Update auth state
+                // setAuthState({
+                //     user,
+                //     accessToken,
+                //     expiresAt: new Date(expiresAt),
+                //     status: "authenticated",
+                // })
+
+                // // Set up refresh timer
+                // setupRefreshTimer(new Date(expiresAt))
 
                 return { success: true }
             }
@@ -145,6 +209,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const verifyAccount = async (credentials: VerifyRegistration): Promise<IErrorResponse> => {
+        try {
+            const response = await authService.verifyRegistration(credentials)
+
+            if (response.success && response.data) {
+                const { user, accessToken, expiresAt } = response.data
+
+                // Store token in localStorage as fallback
+                authService.setStoredToken(accessToken, new Date(expiresAt))
+
+                // Update auth state
+                setAuthState({
+                    user,
+                    accessToken,
+                    expiresAt: new Date(expiresAt),
+                    status: "authenticated",
+                })
+
+                // Set up refresh timer
+                setupRefreshTimer(new Date(expiresAt))
+
+                return { success: true }
+            }
+
+            return {
+                success: false,
+                error: response.error || "Verify registration failed",
+            }
+        } catch (error) {
+            console.error("Verify registration error:", error)
+            return {
+                success: false,
+                error: `Verify registration error: ${error}`,
+            }
+        }
+    }
+
+
     const logout = async () => {
         try {
             // Call logout API
@@ -152,6 +254,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Clear token from storage
             authService.clearStoredToken()
+
+            // Clear refresh timer
+            if (refreshTimerRef.current) {
+                clearTimeout(refreshTimerRef.current)
+                refreshTimerRef.current = null
+            }
 
             // Update auth state
             setAuthState({
@@ -165,6 +273,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             router.push("/")
         } catch (error) {
             console.error("Logout error:", error)
+
+            // Even if API logout fails, we should clear local state
+            authService.clearStoredToken()
+            setAuthState({
+                user: null,
+                accessToken: null,
+                expiresAt: null,
+                status: "unauthenticated",
+            })
+            router.push("/")
         }
     }
 
@@ -185,16 +303,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+
+    const verifyMagicLink = async (token: string) => {
+        try {
+            const response = await authService.verifyMagicLink(token)
+
+            if (response.success && response.data) {
+                const { user, accessToken, expiresAt } = response.data
+
+                // Store token in localStorage as fallback
+                authService.setStoredToken(accessToken, new Date(expiresAt))
+
+                // Update auth state
+                setAuthState({
+                    user,
+                    accessToken,
+                    expiresAt: new Date(expiresAt),
+                    status: "authenticated",
+                })
+
+                // Set up refresh timer
+                setupRefreshTimer(new Date(expiresAt))
+
+                return { success: true }
+            }
+        } catch (error) {
+            console.error("Magic link error:", error)
+            return {
+                success: false,
+                error: "An unexpected error occurred",
+            }
+        }
+    }
+
     const refreshUser = async () => {
         try {
-            if (!authState.accessToken) return
-
             const response = await authService.getCurrentUser()
 
             if (response.success && response.data) {
                 setAuthState((prev) => ({
                     ...prev,
-                    user: response.data,
+                    user: response.data || null,
                 }))
             }
         } catch (error) {
@@ -208,8 +357,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 ...authState,
                 login,
                 register,
+                verifyAccount,
                 logout,
                 sendMagicLink,
+                verifyMagicLink,
                 refreshUser,
                 isAuthenticated: authState.status === "authenticated",
             }}
