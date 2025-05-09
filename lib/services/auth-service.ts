@@ -239,7 +239,7 @@ export const authService = {
   /**
    * Reset password with token and password validation
    */
-  async resetPassword(token: string, password: string): Promise<ApiResponse> {
+  async resetPassword(token: string, password: string, securityInfo?: any): Promise<ApiResponse> {
     // Validate password strength before sending
     const isStrongPassword = this.validatePasswordStrength(password);
     if (!isStrongPassword.valid) {
@@ -249,7 +249,8 @@ export const authService = {
       };
     }
 
-    return api.post('/auth/reset-password', {token, password});
+    // return api.post('/auth/reset-password', {token, password, securityInfo});
+    return api.resetPassword(token, password, securityInfo);
   },
 
   /**

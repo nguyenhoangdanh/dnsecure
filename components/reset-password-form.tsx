@@ -93,6 +93,14 @@ export function ResetPasswordForm() {
 
   const strengthInfo = getStrengthInfo();
 
+  // Function to directly dispatch the Redux action
+  const dispatchResetPassword = (token: string, password: string, securityData: any) => {
+    dispatch({
+      type: 'RESET_PASSWORD_REQUEST',
+      payload: { token, password, securityData }
+    });
+  };
+
   async function onSubmit(data: FormData) {
     if (!token) {
       setError("Reset token is missing");
@@ -104,13 +112,6 @@ export function ResetPasswordForm() {
     setSuccess(false);
 
     try {
-      // Validate token format before proceeding
-      if (!/^[a-zA-Z0-9_-]{20,}$/.test(token)) {
-        setError("Invalid reset token format");
-        setIsLoading(false);
-        return;
-      }
-
       // Add additional security info
       const securityData = {
         timestamp: new Date().toISOString(),
@@ -122,16 +123,14 @@ export function ResetPasswordForm() {
         }
       };
 
-      // Use the Redux-based resetPassword action
-      dispatch(resetPassword(token, data.password, securityData));
+      // Use the direct dispatch function instead of the hook's resetPassword
+      dispatchResetPassword(token, data.password, securityData);
 
-      // Set success and redirect
+      // Success will be handled by the saga with redirect
       setSuccess(true);
-      setTimeout(() => {
-        router.push("/login?reset=success");
-      }, 2000);
-    } catch (error) {
-      setError("An unexpected error occurred");
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      setError(error.message || "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }

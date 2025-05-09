@@ -1,5 +1,5 @@
 // src/store/sagas/passwordResetSaga.ts
-import { takeLatest, call, put } from 'redux-saga/effects';
+import { takeLatest, call, put, delay } from 'redux-saga/effects';
 import { authService } from '@/lib/services/auth-service';
 import type { ApiResponse } from '../types/auth';
 
@@ -29,7 +29,7 @@ function* forgotPasswordSaga(action: { type: string; payload: { email: string } 
   }
 }
 
-// Reset password with token
+// Reset password with token - fixed implementation
 function* resetPasswordSaga(action: { 
   type: string; 
   payload: { 
@@ -39,50 +39,88 @@ function* resetPasswordSaga(action: {
   } 
 }) {
   try {
-    // Extract security data if provided
+    // Show loading state
+    yield put({ type: 'RESET_PASSWORD_LOADING' });
+    
     const { token, password, securityData } = action.payload;
     
-    // Log security info for audit purposes if needed
-    if (securityData) {
-      console.log('Password reset security data:', securityData);
-      // In a real app, you might want to send this to your backend for logging
-      // or fraud prevention purposes
-    }
-    
-    // Call the reset password API
-    const response: ApiResponse = yield call(
-      authService.resetPassword,
-      token,
-      password
-    );
-    
-    if (response.success) {
-      yield put({ type: 'RESET_PASSWORD_SUCCESS' });
-      
-      // Store the security data in a separate call if your API supports it
-      if (securityData) {
-        try {
-          // This would be a separate API call to log security data
-          // yield call(authService.logSecurityEvent, 'password_reset', securityData);
-        } catch (loggingError) {
-          console.error('Failed to log security data:', loggingError);
-          // Non-critical error, don't affect the main flow
-        }
-      }
-      
-      // Redirect to login page is handled by the component
-    } else {
+    // Basic validation
+    if (!token) {
       yield put({ 
         type: 'RESET_PASSWORD_FAILURE', 
-        payload: typeof response.error === 'string' 
-          ? response.error 
-          : response.error?.message || 'Failed to reset password'
+        payload: 'Missing password reset token' 
+      });
+      return;
+    }
+    
+    if (!password) {
+      yield put({ 
+        type: 'RESET_PASSWORD_FAILURE', 
+        payload: 'Password is required' 
+      });
+      return;
+    }
+    
+    // Direct API call without going through authService validation
+    // Using the specialized resetPassword method from api client
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001/api";
+    
+    try {
+      const response = yield call(
+        fetch,
+        `${API_BASE_URL}/auth/reset-password`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          body: JSON.stringify({
+            token,
+            password,
+            securityInfo: securityData || {
+              timestamp: new Date().toISOString(),
+              deviceInfo: {
+                userAgent: navigator.userAgent,
+                language: navigator.language,
+                screenSize: `${window.screen.width}x${window.screen.height}`,
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+              }
+            }
+          }),
+          credentials: 'include'
+        }
+      );
+      
+      const data = yield call([response, 'json']);
+      
+      if (response.ok) {
+        yield put({ type: 'RESET_PASSWORD_SUCCESS' });
+        
+        // Add a delay before redirecting
+        yield delay(2000);
+        
+        // Redirect to login page
+        yield call([window.location, 'replace'], '/login?reset=success');
+      } else {
+        yield put({ 
+          type: 'RESET_PASSWORD_FAILURE', 
+          payload: data.message || 'Failed to reset password'
+        });
+      }
+    } catch (apiError: any) {
+      console.error('API error during password reset:', apiError);
+      yield put({ 
+        type: 'RESET_PASSWORD_FAILURE',
+        payload: apiError.message || 'Network error occurred when trying to reset password'
       });
     }
   } catch (error: any) {
+    console.error('Unexpected error in reset password flow:', error);
     yield put({ 
       type: 'RESET_PASSWORD_FAILURE',
-      payload: error.message || 'An unexpected error occurred'
+      payload: 'An unexpected error occurred. Please try again later.'
     });
   }
 }

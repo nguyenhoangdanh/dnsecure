@@ -126,7 +126,19 @@ export const forgotPassword = (email: string) => ({
  */
 export const resetPassword = (token: string, password: string, securityData?: any) => ({
   type: 'RESET_PASSWORD_REQUEST',
-  payload: { token, password, securityData }
+  payload: { 
+    token, 
+    password, 
+    securityData: securityData || {
+      timestamp: new Date().toISOString(),
+      deviceInfo: {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        screenSize: `${window.screen.width}x${window.screen.height}`,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      }
+    }
+  }
 });
 
 /**

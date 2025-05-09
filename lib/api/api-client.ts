@@ -345,135 +345,77 @@ export const api = {
     } catch (error) {
       return false;
     }
+  },
+
+  resetPassword: <T = any>(token: string, password: string, securityData?: any) => {
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001/api";
+    
+    return new Promise<ApiResponse<T>>(async (resolve) => {
+      try {
+        // Add timeout to fetch requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+  
+        const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          body: JSON.stringify({
+            token,
+            password,
+            securityInfo: securityData
+          }),
+          credentials: 'include',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Parse response
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          data = { message: 'Failed to parse response' };
+        }
+        
+        if (!response.ok) {
+          console.error(`Password reset API error (${response.status}):`, data.message);
+          resolve({
+            success: false,
+            error: data.message || `Error: ${response.status} ${response.statusText}`
+          });
+          return;
+        }
+        
+        resolve({
+          success: true,
+          data
+        });
+      } catch (error) {
+        console.error("Password reset request failed:", error);
+        
+        // Handle timeout errors specifically
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          resolve({
+            success: false,
+            error: "Request timed out. The server took too long to respond."
+          });
+          return;
+        }
+        
+        resolve({
+          success: false,
+          error: error instanceof Error 
+            ? error.message 
+            : "An unexpected error occurred"
+        });
+      }
+    });
   }
 };
 
 
-
-// import type { ApiResponse } from "../types/auth"
-
-// // Add environment variable support
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8001/api"
-
-// // api-client.ts - update the apiRequest function
-// export async function apiRequest<T = any>(
-//   endpoint: string, 
-//   options: RequestInit = {},
-//   retryWithRefresh = true
-// ): Promise<ApiResponse<T>> {
-//   try {
-//     const url = `${API_BASE_URL}${endpoint}`
-    
-//     const headers: Record<string, string> = {
-//       "Content-Type": "application/json",
-//       ...(options.headers as Record<string, string> || {}),
-//     }
-    
-//     const response = await fetch(url, {
-//       ...options,
-//       headers,
-//       credentials: "include", // Important for cookies
-//     });
-    
-//     // Handle 401 Unauthorized
-//     if (response.status === 401 && retryWithRefresh) {
-//       try {
-//         console.log('Token expired, attempting refresh');
-        
-//         // Try to refresh the token
-//         const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
-//           method: 'POST',
-//           credentials: 'include', // Important for cookies
-//         });
-        
-//         if (refreshResponse.ok) {
-//           console.log('Token refreshed successfully');
-          
-//           // Token refreshed successfully, retry the original request
-//           return apiRequest(endpoint, options, false); // No more retries
-//         }
-        
-//         console.log('Token refresh failed');
-        
-//         // If refresh failed, return the original error
-//         return {
-//           success: false,
-//           error: 'Session expired. Please log in again.'
-//         };
-//       } catch (refreshError) {
-//         console.error('Token refresh error:', refreshError);
-//         return {
-//           success: false,
-//           error: 'Authentication failed. Please log in again.'
-//         };
-//       }
-//     }
-    
-//     // Parse response
-//     let data;
-//     const contentType = response.headers.get("content-type");
-//     if (contentType && contentType.includes("application/json")) {
-//       data = await response.json();
-//     } else {
-//       const text = await response.text();
-//       data = { message: text };
-//     }
-    
-//     if (!response.ok) {
-//       return {
-//         success: false,
-//         error: data.message || `Error: ${response.status} ${response.statusText}`,
-//       };
-//     }
-    
-//     return {
-//       success: true,
-//       data,
-//     };
-//   } catch (error) {
-//     console.error("API request failed:", error);
-//     return {
-//       success: false,
-//       error: error instanceof Error ? error.message : "An unknown error occurred",
-//     };
-//   }
-// }
-
-// // Function to handle token refresh
-// async function refreshToken(): Promise<boolean> {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-//       method: 'POST',
-//       credentials: 'include', // Important for cookies
-//     });
-    
-//     return response.ok;
-//   } catch (error) {
-//     console.error('Token refresh failed:', error);
-//     return false;
-//   }
-// }
-
-// export const api = {
-//   get: <T = any>(endpoint: string) => apiRequest<T>(endpoint, { method: "GET" }),
-
-//   post: <T = any>(endpoint: string, data: any) =>
-//     apiRequest<T>(endpoint, {
-//       method: "POST",
-//       body: JSON.stringify(data),
-//     }),
-
-//   put: <T = any>(endpoint: string, data: any) =>
-//     apiRequest<T>(endpoint, {
-//       method: "PUT",
-//       body: JSON.stringify(data),
-//     }),
-  
-//   patch: <T = any>(endpoint: string, data: any) =>
-//     apiRequest<T>(endpoint, {
-//       method: "PATCH",
-//       body: JSON.stringify(data),
-//     }),
-
-//   delete: <T = any>(endpoint: string) => apiRequest<T>(endpoint, { method: "DELETE" }),
-// }
