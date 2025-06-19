@@ -13,9 +13,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { loginSchema } from "@/lib/validations/auth"
 import { OAuthButtons } from "./auth/oauth-buttons"
 import { Loader } from "lucide-react"
-import { useAuth } from "@/hooks"
+import { useAppSelector, useAuth } from "@/hooks"
 import Link from "next/link"
-
+import { RootState } from "@/redux-saga"
+import { TwoFactorVerifyForm } from "./auth/TwoFactorAuthVerify"
+import { useAuthErrorHandler } from "@/lib/utils/auth-error"
+import { PasswordInput } from "./custom/PasswordInput"
+import { toast } from "react-toast-kit";
 type FormData = z.infer<typeof loginSchema>
 
 export function UserAuthForm() {
@@ -23,10 +27,8 @@ export function UserAuthForm() {
   const searchParams = useSearchParams()
   const { login, isAuthenticated, status, error: authError } = useAuth()
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loginAttempts, setLoginAttempts] = useState<number>(0)
-  const [loginLocked, setLoginLocked] = useState<boolean>(false)
-  const [lockCountdown, setLockCountdown] = useState<number>(0)
+
+  const { requires2FA } = useAppSelector((state: RootState) => state.twoFactor);
 
   // Get query parameters
   const tokenExpired = searchParams.get("tokenExpired") === "true"
@@ -41,50 +43,33 @@ export function UserAuthForm() {
     resolver: zodResolver(loginSchema),
   })
 
-  // Effect to handle authentication status changes
+  // Use the enhanced error handler
+  const {
+    error,
+    loginLocked,
+    lockCountdown,
+    resetError
+  } = useAuthErrorHandler({
+    error: authError,
+    status,
+    isLoading,
+    setIsLoading,
+    maxAttempts: 5,
+    lockDuration: 60,
+    context: "UserAuthForm"
+  });
+
   useEffect(() => {
     if (isAuthenticated) {
+      toast.success("Login successful!");
       router.push(callbackUrl);
     }
-
-    if (authError && !error) {
-      setError(authError);
-      setIsLoading(false);
-      setLoginAttempts(prev => prev + 1);
-
-      // Lock login after 5 consecutive failed attempts
-      if (loginAttempts >= 4) { // This will be the 5th attempt
-        setLoginLocked(true);
-        setLockCountdown(60); // Lock for 60 seconds
-      }
-    }
-
-    if (isLoading && status !== 'loading' && !isAuthenticated) {
-      setIsLoading(false);
-    }
-  }, [isAuthenticated, status, authError, router, callbackUrl, error, isLoading, loginAttempts]);
-
-  // Countdown for login lock
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-
-    if (loginLocked && lockCountdown > 0) {
-      timer = setTimeout(() => {
-        setLockCountdown(prev => prev - 1);
-      }, 1000);
-    } else if (lockCountdown === 0 && loginLocked) {
-      setLoginLocked(false);
-      setLoginAttempts(0);
-    }
-
-    return () => clearTimeout(timer);
-  }, [loginLocked, lockCountdown]);
-
+  }, [isAuthenticated] )
   async function onSubmit(data: FormData) {
     if (loginLocked) return;
 
     setIsLoading(true)
-    setError(null)
+    resetError() 
 
     try {
       // Create securityInfo object
@@ -108,10 +93,21 @@ export function UserAuthForm() {
       // Store login time for sensitive operations
       localStorage.setItem('lastLoginTime', new Date().toISOString());
     } catch (error: any) {
-      console.error("Login error:", error);
-      setError("An unexpected error occurred");
       setIsLoading(false);
     }
+  }
+
+  // Xử lý hủy 2FA
+  const handleCancel2FA = () => {
+    // Tải lại trang để reset trạng thái
+    window.location.reload();
+  };
+
+  // Hiển thị form xác thực 2FA nếu cần
+  if (requires2FA) {
+    return (
+      <TwoFactorVerifyForm onCancel={handleCancel2FA} />
+    );
   }
 
   return (
@@ -173,14 +169,13 @@ export function UserAuthForm() {
                   Forgot password?
                 </Link>
               </div>
-              <Input
+              <PasswordInput
                 id="password"
                 placeholder="********"
-                type="password"
                 autoComplete="current-password"
                 disabled={isLoading}
-                {...register("password")}
-              />
+                  {...register("password")}
+                />
               {errors.password && (
                 <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
@@ -212,156 +207,3 @@ export function UserAuthForm() {
     </div>
   )
 }
-
-// // In components/user-auth-form.tsx
-// "use client"
-
-// import { useState } from "react"
-// import { useRouter, useSearchParams } from "next/navigation"
-// import { zodResolver } from "@hookform/resolvers/zod"
-// import { useForm } from "react-hook-form"
-// import * as z from "zod"
-
-// import { Button } from "@/components/ui/button"
-// import { Input } from "@/components/ui/input"
-// import { Label } from "@/components/ui/label"
-// import { Alert, AlertDescription } from "@/components/ui/alert"
-// import { loginSchema } from "@/lib/validations/auth"
-// import { OAuthButtons } from "./auth/oauth-buttons"
-// import { Loader } from "lucide-react"
-// import { useAuth } from "@/hooks"
-
-// type FormData = z.infer<typeof loginSchema>
-
-// export function UserAuthForm() {
-//   const router = useRouter();
-//   const searchParams = useSearchParams()
-//   const { login, isAuthenticated, status } = useAuth()
-//   const [isLoading, setIsLoading] = useState<boolean>(false)
-//   const [error, setError] = useState<string | null>(null)
-
-//   // Check if token has expired from query params
-//   const tokenExpired = searchParams.get("tokenExpired") === "true"
-
-//   // Get callback URL
-//   const callbackUrl = searchParams.get("callbackUrl") || "/"
-
-//   const {
-//     register,
-//     handleSubmit,
-//     formState: { errors },
-//   } = useForm<FormData>({
-//     resolver: zodResolver(loginSchema),
-//   })
-
-//   async function onSubmit(data: FormData) {
-//     setIsLoading(true)
-//     setError(null)
-
-//     try {
-//       // Use the Redux-based login action
-//       // No need to await as Redux will handle the async flow
-//       login({
-//         email: data.email,
-//         password: data.password,
-//         // redirectTo: callbackUrl
-//       })
-
-//       console.log('isAuthenticated', status)
-
-//       if (isAuthenticated) {
-//         router.push(callbackUrl);
-//       }
-
-//       // The status changes will be monitored in the component
-//       // and the router.push will happen in useEffect when authentication succeeds
-//     } catch (error: any) {
-//       console.error("Login error:", error);
-//       setError("An unexpected error occurred");
-//       setIsLoading(false);
-//     } finally {
-//       setIsLoading(false);
-//     }
-
-//     // try {
-//     //   const result = await login(data)
-
-//     //   if (result.success) {
-//     //     router.push(callbackUrl)
-//     //   } else {
-//     //     setError(result.error || "Login failed")
-//     //   }
-//     // } catch (error) {
-//     //   console.error("Login error:", error)
-//     //   setError("An unexpected error occurred")
-//     // } finally {
-//     //   setIsLoading(false)
-//     // }
-//   }
-
-//   return (
-//     <div className="grid gap-6">
-//       {tokenExpired && (
-//         <Alert variant="destructive">
-//           <AlertDescription>
-//             Your session has expired. Please login again.
-//           </AlertDescription>
-//         </Alert>
-//       )}
-
-//       {error && (
-//         <Alert variant="destructive">
-//           <AlertDescription>{error}</AlertDescription>
-//         </Alert>
-//       )}
-
-//       <form onSubmit={handleSubmit(onSubmit)}>
-//         <div className="grid gap-4">
-//           <div className="grid gap-2">
-//             <Label htmlFor="email">Email</Label>
-//             <Input
-//               id="email"
-//               placeholder="name@example.com"
-//               type="email"
-//               autoCapitalize="none"
-//               autoComplete="email"
-//               autoCorrect="off"
-//               disabled={isLoading}
-//               {...register("email")}
-//             />
-//             {errors.email && (
-//               <p className="text-sm text-red-500">{errors.email.message}</p>
-//             )}
-//           </div>
-//           <div className="grid gap-2">
-//             <Label htmlFor="password">Password</Label>
-//             <Input
-//               id="password"
-//               placeholder="********"
-//               // type="password"
-//               autoComplete="current-password"
-//               disabled={isLoading}
-//               {...register("password")}
-//             />
-//             {errors.password && (
-//               <p className="text-sm text-red-500">{errors.password.message}</p>
-//             )}
-//           </div>
-//           <Button disabled={isLoading}>
-//             {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-//             Sign In
-//           </Button>
-//         </div>
-//       </form>
-//       <div className="relative">
-//         <div className="absolute inset-0 flex items-center">
-//           <span className="w-full border-t" />
-//         </div>
-//         <div className="relative flex justify-center text-xs uppercase">
-//           <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-//         </div>
-//       </div>
-//       <OAuthButtons isLoading={isLoading} />
-//     </div>
-//   )
-// }

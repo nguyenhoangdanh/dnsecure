@@ -14,7 +14,10 @@ export interface AuthState {
   accessToken: string | null;
   expiresAt: string | null; // ISO string for serialization
   status:
-    | 'loading'
+  | 'loading'
+  | '2fa_needed'
+  | 'unverified'
+  | 'failed'
     | 'authenticated'
     | 'unauthenticated'
     | 'registration_success'
@@ -53,6 +56,8 @@ export interface AuthResponse {
   user: User;
   accessToken: string;
   expiresAt: string; // ISO string
+  requires2FA: boolean;
+  sessionId: string
 }
 
 export interface ApiResponse<T = any> {

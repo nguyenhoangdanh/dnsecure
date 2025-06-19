@@ -18,7 +18,8 @@ import {
   refreshTokenFailure,
   updateUserRequest,
   updateUserSuccess,
-  updateUserFailure
+  updateUserFailure,
+  loginRequires2FA
 } from '../slices/authSlice';
 import { PayloadAction } from '@reduxjs/toolkit';
 import type { 
@@ -30,20 +31,93 @@ import type {
   User 
 } from '../types/auth';
 import { RootState } from '../store';
+import { toast } from 'sonner';
+import { setRequires2FA } from '../slices/twoFactorSlice';
 
 // Selectors
 const selectAuth = (state: RootState) => state.auth;
 const selectExpiresAt = (state: RootState) => state.auth.expiresAt;
 
 // Worker Sagas
+// function* loginSaga(action: PayloadAction<LoginCredentials>) {
+//   try {
+//     const response: ApiResponse<AuthResponse> = yield call(
+//       authService.login, 
+//       action.payload
+//     );
+    
+//     if (response.success && response.data) {
+//       // Set token in localStorage as fallback (better to use HTTP-only cookies)
+//       yield call(
+//         authService.setStoredToken, 
+//         response.data.accessToken, 
+//         new Date(response.data.expiresAt)
+//       );
+      
+//       // Update Redux state
+//       yield put(loginSuccess({
+//         user: response.data.user,
+//         accessToken: response.data.accessToken,
+//         expiresAt: response.data.expiresAt
+//       }));
+      
+//       // Start token refresh cycle - make sure this is called *after* login success
+//       const refreshTask = yield fork(refreshTokenWatcher);
+      
+//       // Redirect if needed - handled by the component
+//     } else {
+//       yield put(loginFailure(
+//         typeof response.error === 'string' 
+//           ? response.error 
+//           : response.error?.message || 'Login failed'
+//       ));
+//     }
+//   } catch (error: any) {
+//     yield put(loginFailure(error.message || 'An unexpected error occurred'));
+//   }
+// }
+
 function* loginSaga(action: PayloadAction<LoginCredentials>) {
   try {
-    const response: ApiResponse<AuthResponse> = yield call(
+    const response: ApiResponse = yield call(
       authService.login, 
       action.payload
     );
     
     if (response.success && response.data) {
+      // Kiểm tra xem có yêu cầu 2FA không
+      if ( 
+          response.data?.requires2FA || 
+          response.message === 'Two-factor authentication required' ||
+          response.data?.message === 'Two-factor authentication required') {
+            
+        console.log('Two-factor authentication required');
+        
+        // Chuyển sang luồng xác thực 2FA
+        yield put(loginRequires2FA());
+        
+        // Lưu sessionId để sử dụng cho việc xác thực 2FA
+        // Kiểm tra sessionId ở nhiều vị trí có thể có
+        const sessionId = response.data.sessionId || 
+                          response.data?.sessionId || 
+                          '';
+                          
+        if (!sessionId) {
+          console.error("No sessionId returned from server for 2FA");
+          toast.error("Authentication error: Session information is missing");
+          return;
+        }
+        
+        console.log(`Setting 2FA session ID: ${sessionId}`);
+        
+        yield put(setRequires2FA({
+          sessionId: sessionId
+        }));
+        
+        toast.info('Please enter your two-factor authentication code');
+        return;
+      }
+      
       // Set token in localStorage as fallback (better to use HTTP-only cookies)
       yield call(
         authService.setStoredToken, 
@@ -58,53 +132,29 @@ function* loginSaga(action: PayloadAction<LoginCredentials>) {
         expiresAt: response.data.expiresAt
       }));
       
+      // Lưu trữ thời gian đăng nhập cho các thao tác nhạy cảm
+      localStorage.setItem('lastLoginTime', new Date().toISOString());
+      
       // Start token refresh cycle - make sure this is called *after* login success
       const refreshTask = yield fork(refreshTokenWatcher);
       
-      // Redirect if needed - handled by the component
+      toast.success('Login successful');
     } else {
       yield put(loginFailure(
         typeof response.error === 'string' 
           ? response.error 
           : response.error?.message || 'Login failed'
       ));
+      
+      toast.error(typeof response.error === 'string' 
+        ? response.error 
+        : response.error?.message || 'Login failed');
     }
   } catch (error: any) {
     yield put(loginFailure(error.message || 'An unexpected error occurred'));
+    toast.error(error.message || 'An unexpected error occurred during login');
   }
 }
-
-// function* logoutSaga(action: PayloadAction<{ reason?: string; allDevices?: boolean } | undefined>) {
-//   try {
-//     const options = action.payload;
-//     const allDevices = options?.allDevices || false;
-    
-//     // Call logout API with options
-//     yield call(authService.logout, { allDevices });
-    
-//     // Clear token from storage
-//     yield call(authService.clearStoredToken);
-    
-//     // Update Redux state
-//     yield put(logoutSuccess());
-    
-//     // Log reason if provided (could be stored for analytics)
-//     if (options?.reason) {
-//       console.log('Logout reason:', options.reason);
-//     }
-    
-//     // Redirect to home page
-//     yield call([window.location, 'replace'], '/');
-//   } catch (error) {
-//     console.error('Logout error:', error);
-    
-//     // Even if API logout fails, we should clear local state
-//     yield call(authService.clearStoredToken);
-//     yield put(logoutSuccess());
-//     yield call([window.location, 'replace'], '/');
-//   }
-// }
-
 function* logoutSaga(action: PayloadAction<{ reason?: string; allDevices?: boolean; silent?: boolean } | undefined>) {
   try {
     const options = action.payload;

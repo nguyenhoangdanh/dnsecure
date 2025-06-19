@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Icons } from "@/components/icons"
 import { verifyEmail, resendVerificationEmail } from "@/lib/actions/auth-actions"
 import { Loader } from "lucide-react"
+import { getErrorMessage } from "@/lib/utils/error-handler"
 
 export function VerifyEmailForm() {
   const router = useRouter()
@@ -54,7 +55,7 @@ export function VerifyEmailForm() {
       if (result.success) {
         setResendSuccess(true)
       } else {
-        setError(result.error || "Failed to resend verification email")
+        setError(getErrorMessage(result.error) || "Failed to resend verification email")
       }
     } catch (error) {
       setError("An unexpected error occurred")

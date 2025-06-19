@@ -36,6 +36,10 @@ const authSlice = createSlice({
       state.status = 'unauthenticated';
       state.error = action.payload;
     },
+    loginRequires2FA: (state) => {
+      state.status = 'loading';
+      state.error = null;
+    },
     logoutRequest: (
       state,
       action: PayloadAction<
@@ -142,6 +146,7 @@ export const {
   updateUserRequest,
   updateUserSuccess,
   updateUserFailure,
+  loginRequires2FA
 } = authSlice.actions;
 
 export default authSlice.reducer;

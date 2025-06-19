@@ -253,6 +253,16 @@ export const authService = {
     return api.resetPassword(token, password, securityInfo);
   },
 
+  // Change password
+  async changePassword(currentPassword: string,
+    newPassword: string
+  ): Promise<ApiResponse> {
+    return api.post('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
+  },
+
   /**
    * Update user profile with optional password verification for sensitive updates
    */

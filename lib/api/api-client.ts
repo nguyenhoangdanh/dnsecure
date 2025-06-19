@@ -84,108 +84,229 @@ export async function apiRequest<T = any>(
           error: 'Rate limited. Please try again later.'
         };
       }
+
       
-      // Handle 401 Unauthorized with improved retry logic
-      if (response.status === 401 && retryWithRefresh) {
-        try {
-          console.log('Token expired, attempting refresh');
+      // // Handle 401 Unauthorized with improved retry logic
+      // if (response.status === 401 && retryWithRefresh) {
+      //   try {
+      //     console.log('Token expired, attempting refresh');
           
-          // Check time since last refresh to avoid excessive calls
-          const lastRefreshStr = localStorage.getItem('lastApiRefreshAttempt');
-          const lastRefresh = lastRefreshStr ? parseInt(lastRefreshStr) : 0;
-          const MIN_REFRESH_INTERVAL = 10 * 1000; // 10 seconds between refreshes
+      //     // Check time since last refresh to avoid excessive calls
+      //     const lastRefreshStr = localStorage.getItem('lastApiRefreshAttempt');
+      //     const lastRefresh = lastRefreshStr ? parseInt(lastRefreshStr) : 0;
+      //     const MIN_REFRESH_INTERVAL = 10 * 1000; // 10 seconds between refreshes
           
-          if (now - lastRefresh < MIN_REFRESH_INTERVAL) {
-            console.log(`API refresh throttled - last refresh was ${Math.floor((now - lastRefresh)/1000)}s ago`);
-            return {
-              success: false,
-              error: 'Your session has expired. Please wait before trying again or log in again.'
-            };
-          }
+      //     if (now - lastRefresh < MIN_REFRESH_INTERVAL) {
+      //       console.log(`API refresh throttled - last refresh was ${Math.floor((now - lastRefresh)/1000)}s ago`);
+      //       return {
+      //         success: false,
+      //         error: 'Your session has expired. Please wait before trying again or log in again.'
+      //       };
+      //     }
           
-          // Record refresh time
-          localStorage.setItem('lastApiRefreshAttempt', now.toString());
+      //     // Record refresh time
+      //     localStorage.setItem('lastApiRefreshAttempt', now.toString());
           
-          // Try to refresh the token
-          const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
-            method: 'POST',
-            credentials: 'include', 
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-            },
-            cache: 'no-store',
-          });
+      //     // Try to refresh the token
+      //     const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      //       method: 'POST',
+      //       credentials: 'include',
+      //       headers: {
+      //         'Content-Type': 'application/json',
+      //         'Cache-Control': 'no-cache, no-store, must-revalidate',
+      //         'Pragma': 'no-cache',
+      //       },
+      //       cache: 'no-store',
+      //     });
           
-          // Handle refresh rate limiting
-          if (refreshResponse.status === 429) {
-            console.error("Rate limited (429) during token refresh");
+      //     // Handle refresh rate limiting
+      //     if (refreshResponse.status === 429) {
+      //       console.error("Rate limited (429) during token refresh");
             
-            // Set longer cooldown
-            const cooldownTimeMs = 5 * 60 * 1000; // 5 minutes
-            const cooldownUntil = now + cooldownTimeMs;
-            localStorage.setItem('tokenRefreshCooldownUntil', cooldownUntil.toString());
+      //       // Set longer cooldown
+      //       const cooldownTimeMs = 5 * 60 * 1000; // 5 minutes
+      //       const cooldownUntil = now + cooldownTimeMs;
+      //       localStorage.setItem('tokenRefreshCooldownUntil', cooldownUntil.toString());
             
-            return {
-              success: false,
-              error: 'Authentication temporarily unavailable due to rate limiting. Please try again later.'
-            };
-          }
+      //       return {
+      //         success: false,
+      //         error: 'Authentication temporarily unavailable due to rate limiting. Please try again later.'
+      //       };
+      //     }
           
-          if (refreshResponse.ok) {
-            console.log('Token refreshed successfully');
+      //     if (refreshResponse.ok) {
+      //       console.log('Token refreshed successfully');
             
-            // Add delay before retrying original request
-            await new Promise(resolve => setTimeout(resolve, 500));
+      //       // Add delay before retrying original request
+      //       await new Promise(resolve => setTimeout(resolve, 500));
             
-            // Token refreshed successfully, retry the original request
-            return apiRequest(endpoint, options, false); // No more retries
-          }
+      //       // Token refreshed successfully, retry the original request
+      //       return apiRequest(endpoint, options, false); // No more retries
+      //     }
           
-          console.log('Token refresh failed');
+
+      //     const error = await refreshResponse.json();
           
-          // If refresh failed, return a user-friendly error
-          return {
-            success: false,
-            error: 'Your session has expired. Please log in again.'
-          };
-        } catch (refreshError) {
-          console.error('Token refresh error:', refreshError);
+      //     console.log('Token refresh failed', error);
+      //     // If refresh failed, return a user-friendly error
+      //     return {
+      //       success: false,
+      //       error: error.message || 'Your session has expired. Please log in again.'
+      //     };
+      //   } catch (refreshError) {
+      //     console.error('Token refresh error:', refreshError);
           
-          // If refresh failed due to network error, return more specific error
-          if (refreshError instanceof TypeError && refreshError.message.includes('Failed to fetch')) {
-            return {
-              success: false,
-              error: 'Network error during authentication. Please check your connection and try again.'
-            };
-          }
+      //     // If refresh failed due to network error, return more specific error
+      //     if (refreshError instanceof TypeError && refreshError.message.includes('Failed to fetch')) {
+      //       return {
+      //         success: false,
+      //         error: 'Network error during authentication. Please check your connection and try again.'
+      //       };
+      //     }
           
-          return {
-            success: false,
-            error: 'Authentication failed. Please log in again.'
-          };
-        }
-      }
+      //     return {
+      //       success: false,
+      //       error: 'Authentication failed. Please log in again.'
+      //     };
+      //   }
+      // }
       
-      // Improved response parsing
-      let data;
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        data = { message: text };
-      }
+      // // Improved response parsing
+      // let data;
+      // const contentType = response.headers.get("content-type");
+      // if (contentType && contentType.includes("application/json")) {
+      //   data = await response.json();
+      // } else {
+      //   const text = await response.text();
+      //   data = { message: text };
+      // }
+      
+       // Improved response parsing - parse JSON early to check error details
+       let data;
+       const contentType = response.headers.get("content-type");
+       if (contentType && contentType.includes("application/json")) {
+         data = await response.json();
+       } else {
+         const text = await response.text();
+         data = { message: text };
+       }
+       
+       // Handle 401 Unauthorized with improved logic
+       // IMPORTANT CHANGE: Don't attempt token refresh for login/register endpoints
+       // or when error is "Invalid credentials"/"Unauthorized"
+       if (response.status === 401 && retryWithRefresh) {
+         // Check if this is a login request or has a specific unauthorized error
+         const isLoginRequest = endpoint === '/auth/login' || endpoint === '/auth/register';
+         const isInvalidCredentials = data?.error === 'Unauthorized' || 
+                                     data?.message === 'Invalid credentials';
+         
+         // Skip refresh token flow for login requests or invalid credentials
+         if (isLoginRequest || isInvalidCredentials) {
+           console.log('Authentication failed: Invalid credentials - not attempting token refresh');
+           return {
+             success: false,
+             error: data
+           };
+         }
+         
+         // For other 401 errors, try token refresh
+         try {
+           console.log('Token expired, attempting refresh');
+           
+           // Check time since last refresh to avoid excessive calls
+           const lastRefreshStr = localStorage.getItem('lastApiRefreshAttempt');
+           const lastRefresh = lastRefreshStr ? parseInt(lastRefreshStr) : 0;
+           const MIN_REFRESH_INTERVAL = 10 * 1000; // 10 seconds between refreshes
+           
+           if (now - lastRefresh < MIN_REFRESH_INTERVAL) {
+             console.log(`API refresh throttled - last refresh was ${Math.floor((now - lastRefresh)/1000)}s ago`);
+             return {
+               success: false,
+               error: 'Your session has expired. Please wait before trying again or log in again.'
+             };
+           }
+           
+           // Record refresh time
+           localStorage.setItem('lastApiRefreshAttempt', now.toString());
+           
+           // Try to refresh the token
+           const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+             method: 'POST',
+             credentials: 'include', 
+             headers: {
+               'Content-Type': 'application/json',
+               'Cache-Control': 'no-cache, no-store, must-revalidate',
+               'Pragma': 'no-cache',
+             },
+             cache: 'no-store',
+           });
+           
+           // Handle refresh rate limiting
+           if (refreshResponse.status === 429) {
+             console.error("Rate limited (429) during token refresh");
+             
+             // Set longer cooldown
+             const cooldownTimeMs = 5 * 60 * 1000; // 5 minutes
+             const cooldownUntil = now + cooldownTimeMs;
+             localStorage.setItem('tokenRefreshCooldownUntil', cooldownUntil.toString());
+             
+             return {
+               success: false,
+               error: 'Authentication temporarily unavailable due to rate limiting. Please try again later.'
+             };
+           }
+           
+           if (refreshResponse.ok) {
+             console.log('Token refreshed successfully');
+             
+             // Add delay before retrying original request
+             await new Promise(resolve => setTimeout(resolve, 500));
+             
+             // Token refreshed successfully, retry the original request
+             return apiRequest(endpoint, options, false); // No more retries
+           }
+           
+           // Parse the refresh error
+           let refreshError;
+           try {
+             refreshError = await refreshResponse.json();
+           } catch (e) {
+             refreshError = { message: 'Failed to refresh authentication' };
+           }
+           
+           console.log('Token refresh failed', refreshError);
+           
+           // If refresh failed, return a user-friendly error
+           return {
+             success: false,
+             error: refreshError.message || 'Your session has expired. Please log in again.'
+           };
+         } catch (refreshError) {
+           console.error('Token refresh error:', refreshError);
+           
+           // If refresh failed due to network error, return more specific error
+           if (refreshError instanceof TypeError && refreshError.message.includes('Failed to fetch')) {
+             return {
+               success: false,
+               error: 'Network error during authentication. Please check your connection and try again.'
+             };
+           }
+           
+           return {
+             success: false,
+             error: 'Authentication failed. Please log in again.'
+           };
+         }
+       }
       
       if (!response.ok) {
         // Enhanced error handling with more contextual info
-        const errorMessage = data.message || `Error: ${response.status} ${response.statusText}`;
-        console.error(`API Error (${response.status}):`, errorMessage);
+        // const errorMessage = data.message || `Error: ${response.status} ${response.statusText}`;
+        // console.error(`API Error (${response.status}):`, errorMessage);
         
         return {
           success: false,
-          error: errorMessage,
+          error: data,
         };
       }
       

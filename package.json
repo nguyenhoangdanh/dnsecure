@@ -57,6 +57,7 @@
     "react-hook-form": "latest",
     "react-redux": "^9.2.0",
     "react-resizable-panels": "^2.1.7",
+    "react-toast-kit": "^1.0.6",
     "recharts": "2.15.0",
     "redux": "^5.0.1",
     "redux-persist": "^6.0.0",
@@ -66,6 +67,7 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
     "vaul": "^0.9.6",
+    "react-table-power": "file:/home/hoangdanh2000/Desktop/Projects/react-table-power",
     "zod": "latest"
   },
   "devDependencies": {

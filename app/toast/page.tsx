@@ -1,6 +1,6 @@
 "use client"
 
-import { useToast } from "@/components/toast/enhanced-toaster"
+import { useToast } from "@/components/toast/toaster"
 import { Button } from "@/components/ui/button"
 
 export default function ToastDemo() {

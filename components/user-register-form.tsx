@@ -68,7 +68,6 @@ export function UserRegisterForm() {
 
       // Redux will handle the rest through sagas
     } catch (error: any) {
-      console.error("Registration error:", error);
       setError("An unexpected error occurred");
       setIsLoading(false);
     }

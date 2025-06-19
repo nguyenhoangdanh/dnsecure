@@ -21,7 +21,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ session: result.session }, { status: 200 })
   } catch (error) {
-    console.error("Session info error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

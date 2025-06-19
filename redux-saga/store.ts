@@ -6,6 +6,7 @@ import storage from 'redux-persist/lib/storage';
 import { combineReducers } from 'redux';
 
 import authReducer from './slices/authSlice';
+import twoFactorReducer from './slices/twoFactorSlice';
 import rootSaga from './sagas/rootSaga';
 
 // Middleware cho rate limiting
@@ -64,6 +65,7 @@ const authRateLimitingMiddleware = (store) => (next) => {
 // Define root reducer with TypeScript
 const rootReducer = combineReducers({
   auth: authReducer,
+  twoFactor: twoFactorReducer,
   // Add more reducers here
 });
 

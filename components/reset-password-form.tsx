@@ -12,6 +12,7 @@ import { useAppDispatch, useAuth } from "@/hooks"
 import { Loader } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
+import { getErrorMessage } from "@/lib/utils/error-handler"
 
 // Enhanced password schema with better validation
 const formSchema = z
@@ -128,9 +129,8 @@ export function ResetPasswordForm() {
 
       // Success will be handled by the saga with redirect
       setSuccess(true);
-    } catch (error: any) {
-      console.error("Password reset error:", error);
-      setError(error.message || "An unexpected error occurred");
+    } catch (error) {
+      setError(getErrorMessage(error) || "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }

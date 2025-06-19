@@ -3,9 +3,9 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 import { LoadingProvider } from "@/components/loading/loading-context"
-// import { Toaster } from "@/components/ui/sonner"
-import { ToastProvider } from "@/components/toast/toast-provider"
 import ReduxAuthProvider from "@/provider/ReduxAuthProvider"
+import { ClientToastProvider } from "@/provider/ClientToastProvider"
+import DataTableProviderWrapper from "@/provider/DataTableProviderWrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -30,9 +30,11 @@ export default function RootLayout({
         >
           <ReduxAuthProvider>
             <LoadingProvider>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
+              <ClientToastProvider>
+                <DataTableProviderWrapper>
+                  {children}
+                </DataTableProviderWrapper>
+              </ClientToastProvider>
             </LoadingProvider>
           </ReduxAuthProvider>
         </ThemeProvider>

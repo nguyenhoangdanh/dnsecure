@@ -3,7 +3,7 @@
 import * as React from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { useTheme } from "next-themes"
-import { Toast, type ToastProps } from "./enhanced-toast"
+import { Toast, type ToastProps } from "./toast"
 import { cn } from "@/lib/utils"
 
 export interface ToastItem extends ToastProps {
@@ -75,7 +75,7 @@ export const ToasterProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return <ToasterContext.Provider value={toaster}>{children}</ToasterContext.Provider>
 }
 
-export const EnhancedToaster: React.FC<ToasterProps> = ({
+export const Toaster: React.FC<ToasterProps> = ({
     position = "top-right",
     toastClassName,
     containerClassName,
